@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1697116483 source:c:\users\pedro\documents\projetosc\perfectmaze\perfectmaze\main.c
+1697123762 source:c:\users\pedro\documents\projetosc\perfectmaze\perfectmaze\main.c
 	<stdio.h>
 	<stdlib.h>
 	<time.h>

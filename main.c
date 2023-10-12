@@ -3,14 +3,15 @@
 #include <time.h>
 #include <omp.h>
 
-#define MAZE_SIZE 500
+#define MAZE_SIZE 1000
 
 char maze[MAZE_SIZE][MAZE_SIZE];
 
-// Funçãoo para imprimir o labirinto
+// Função para imprimir o labirinto
 void print_maze() {
-    #pragma omp parallel for private(i, j)
+    #pragma omp parallel for
     for (int i = 0; i < MAZE_SIZE; i++) {
+        #pragma omp parallel for
         for (int j = 0; j < MAZE_SIZE; j++) {
             printf("%c ", maze[i][j]);
         }
@@ -21,8 +22,9 @@ void print_maze() {
 // Função para criar um labirinto com caminhos internos e alternativos
 void create_maze() {
     // Inicializa o labirinto com todas as células preenchidas com paredes
-    #pragma omp parallel for private(i, j)
+    #pragma omp parallel for
     for (int i = 0; i < MAZE_SIZE; i++) {
+        #pragma omp parallel for
         for (int j = 0; j < MAZE_SIZE; j++) {
             maze[i][j] = '#';
         }
@@ -32,42 +34,45 @@ void create_maze() {
     maze[0][0] = 'E';
     maze[0][1] = ' ';
     maze[MAZE_SIZE - 1][MAZE_SIZE - 1] = 'S';
-    maze[MAZE_SIZE -1][MAZE_SIZE-2] = ' ';
+    maze[MAZE_SIZE - 1][MAZE_SIZE - 2] = ' ';
 
-    #pragma omp parallel sections
-    {
-        #pragma omp section
-        {
-            // Caminho principal para a saída:
-            int x = 1;
-            int y = 0;
-            while (x < MAZE_SIZE - 1 || y < MAZE_SIZE - 2) {
-                #pragma omp critical
-                {
-                    maze[x][y] = ' ';
-                }
-                if (x < MAZE_SIZE - 1 && rand() % 2 == 0) {
-                    x++;
-                } else if (y < MAZE_SIZE - 2) {
-                    y++;
-                }
+    // Caminho principal para a saída
+    int x = 1;
+    int y = 0;
+    while (x < MAZE_SIZE - 1 || y < MAZE_SIZE - 2) {
+        #pragma omp parallel for
+        for (int i = x; i < x + 1; i++) {
+            #pragma omp parallel for
+            for (int j = y; j < y + 1; j++) {
+                #pragma omp atomic write
+                maze[i][j] = ' ';
             }
+        }
+
+        if (x < MAZE_SIZE - 1 && rand() % 2 == 0) {
+            x++;
+        } else if (y < MAZE_SIZE - 2) {
+            y++;
         }
     }
 
-    #pragma omp parallel for private(i, j)
+    #pragma omp parallel for
     for (int i = 1; i < MAZE_SIZE - 1; i += 2) {
+        #pragma omp parallel for
         for (int j = 1; j < MAZE_SIZE - 2; j++) {
             if (rand() % 2 == 0) {
+                #pragma omp atomic write
                 maze[i][j] = ' ';
             }
         }
     }
 
-    #pragma omp parallel for private(i, j)
+    #pragma omp parallel for
     for (int i = 2; i < MAZE_SIZE - 1; i += 2) {
+        #pragma omp parallel for
         for (int j = 2; j < MAZE_SIZE - 2; j++) {
             if (rand() % 2 == 0) {
+                #pragma omp atomic write
                 maze[i][j] = ' ';
             }
         }
@@ -111,7 +116,6 @@ int busca_em_profundidade(int inicio_x, int inicio_y) {
 
     while (pilha.topo != -1) {
         Coordenada atual;
-
         #pragma omp critical
         {
             atual = pop(&pilha);
@@ -125,22 +129,20 @@ int busca_em_profundidade(int inicio_x, int inicio_y) {
             return 1;
         }
 
-        #pragma omp critical
-        {
-            // Marcando a célula como visitada
-            maze[x][y] = '.';
-        }
+        // Marcando a célula como visitada
+        #pragma omp atomic write
+        maze[x][y] = '.';
 
-         // Todos os movimentos possíveis
+        // Todos os movimentos possíveis
         int movimentosX[4] = {0, 0, -1, 1};
         int movimentosY[4] = {-1, 1, 0, 0};
 
-        #pragma omp parallel for private(i, novoX, novoY)
-        for(int i = 0; i < 4; i++){
+        #pragma omp parallel for nowait
+        for (int i = 0; i < 4; i++) {
             int novoX = x + movimentosX[i];
             int novoY = y + movimentosY[i];
 
-            if((eh_valido(novoX, novoY)) && (maze[novoX][novoY] == ' ' || maze[novoX][novoY] == 'S') ){
+            if (eh_valido(novoX, novoY) && (maze[novoX][novoY] == ' ' || maze[novoX][novoY] == 'S')) {
                 Coordenada novoCoord = {novoX, novoY};
                 #pragma omp critical
                 {
@@ -150,14 +152,14 @@ int busca_em_profundidade(int inicio_x, int inicio_y) {
         }
     }
 
-    // Se a pilha estiver vazia e não chegarmos à saída, entãoo n�o h� caminho
+    // Se a pilha estiver vazia e não chegarmos à saída, então não há caminho
     return 0;
 }
 
 int main() {
     srand(time(NULL));
 
-    omp_set_num_threads(2);
+    omp_set_num_threads(2); //Definir o número de threads
 
     // Crie o labirinto e inicialize a matriz de caminho
     create_maze();
