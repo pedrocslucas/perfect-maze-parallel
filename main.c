@@ -168,11 +168,12 @@ int main() {
     print_maze();
 
     int resp = busca_em_profundidade(0, 0);
-    if(resp == 1)
-        printf("Caminho encontrado:\n");
-    else
-        printf("Caminho NAO encontrado:\n");
+    printf("\nCAMINHO FEITO PELO LABIRINTO: \n");
     print_maze();
+    if(resp == 1)
+        printf("Caminho encontrado! =)\n");
+    else
+        printf("Caminho NAO encontrado! =(\n");
 
     return 0;
 }
