@@ -44,7 +44,6 @@ void create_maze() {
         for (int i = x; i < x + 1; i++) {
             #pragma omp parallel for
             for (int j = y; j < y + 1; j++) {
-                #pragma omp atomic write
                 maze[i][j] = ' ';
             }
         }
@@ -61,7 +60,6 @@ void create_maze() {
         #pragma omp parallel for
         for (int j = 1; j < MAZE_SIZE - 2; j++) {
             if (rand() % 2 == 0) {
-                #pragma omp atomic write
                 maze[i][j] = ' ';
             }
         }
@@ -72,7 +70,6 @@ void create_maze() {
         #pragma omp parallel for
         for (int j = 2; j < MAZE_SIZE - 2; j++) {
             if (rand() % 2 == 0) {
-                #pragma omp atomic write
                 maze[i][j] = ' ';
             }
         }
@@ -115,11 +112,7 @@ int busca_em_profundidade(int inicio_x, int inicio_y) {
     push(&pilha, inicio);
 
     while (pilha.topo != -1) {
-        Coordenada atual;
-        #pragma omp critical
-        {
-            atual = pop(&pilha);
-        }
+        Coordenada atual = pop(&pilha);
 
         int x = atual.x;
         int y = atual.y;
@@ -137,17 +130,14 @@ int busca_em_profundidade(int inicio_x, int inicio_y) {
         int movimentosX[4] = {0, 0, -1, 1};
         int movimentosY[4] = {-1, 1, 0, 0};
 
-        #pragma omp parallel for nowait
+        #pragma omp parallel for
         for (int i = 0; i < 4; i++) {
             int novoX = x + movimentosX[i];
             int novoY = y + movimentosY[i];
 
             if (eh_valido(novoX, novoY) && (maze[novoX][novoY] == ' ' || maze[novoX][novoY] == 'S')) {
                 Coordenada novoCoord = {novoX, novoY};
-                #pragma omp critical
-                {
-                    push(&pilha, novoCoord);
-                }
+                push(&pilha, novoCoord);
             }
         }
     }
