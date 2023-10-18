@@ -174,22 +174,17 @@ int busca_em_profundidade(long long startX, long long startY) {
         int dx[] = {0, 1, 0, -1};
         int dy[] = {-1, 0, 1, 0};
 
-        // Percorre todas as direções possíveis em paralelo
-        #pragma omp parallel for shared(found)
         for (int i = 0; i < 4; i++) {
-            if (found) continue; // Se o caminho foi encontrado por outra thread, saia do loop
+            if (found) continue; // Se o caminho foi encontrado, saia do loop
 
             long newX = current.x + dx[i];
             long newY = current.y + dy[i];
 
             // Verifica se as novas coordenadas estão dentro dos limites do labirinto e se é um caminho vazio ou a saída
             if (eh_valido(newX, newY) && (maze[newY][newX] == ' ' || maze[newY][newX] == 'S')) {
-                #pragma omp critical
-                {
-                    top++;
-                    stack[top].x = newX;
-                    stack[top].y = newY;
-                }
+                top++;
+                stack[top].x = newX;
+                stack[top].y = newY;
             }
         }
     }
@@ -201,7 +196,7 @@ int busca_em_profundidade(long long startX, long long startY) {
 int main() {
     srand(time(NULL));
 
-    omp_set_num_threads(2); // Define o n�mero de Threads
+    omp_set_num_threads(8); // Define o n�mero de Threads
 
     double timei = omp_get_wtime();
     create_maze();
