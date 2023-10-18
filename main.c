@@ -3,146 +3,152 @@
 #include <time.h>
 #include <omp.h>
 
-#define MAZE_SIZE 50
+#define MAZE_SIZE 10000
 
 char** maze;
 
+//Estrutura para representar as células do algoritmo de criação do labirinto
+struct {
+    long x;
+    long y;
+} cells[MAZE_SIZE * MAZE_SIZE / 2];
+
+//Estrutura de Coordenadas, utilizada no algoritmo de busca em profundidade
+typedef struct {
+    long x;
+    long y;
+} Point;
+
+//Função para criar uma instância da variável do labirinto chamada de 'maze'
 void inicializa_maze() {
     maze = (char**)malloc(MAZE_SIZE * sizeof(char*));
-    for (long long i = 0; i < MAZE_SIZE; i++) {
+    long i;
+    //#pragma omp parallel for private(i)
+    for (i = 0; i < MAZE_SIZE; i++) {
         maze[i] = (char*)malloc(MAZE_SIZE * sizeof(char));
     }
 }
 
+//Função para liberar a memória da variável 'maze', após o uso
 void liberar_memoria() {
-    for (int i = 0; i < MAZE_SIZE; i++) {
+    long i;
+    //#pragma omp parallel for private(i)
+    for (i = 0; i < MAZE_SIZE; i++) {
         free(maze[i]);
     }
     free(maze);
 }
 
+//Função para criar o labirinto
 void create_maze() {
     inicializa_maze();
-    // Inicialize o labirinto com todas as cÃ©lulas preenchidas com paredes
+
     //#pragma omp parallel for collapse(2)
-    for (int i = 0; i < MAZE_SIZE; i++) {
-        for (int j = 0; j < MAZE_SIZE; j++) {
+    for (long i = 0; i < MAZE_SIZE; i++) {
+        for (long j = 0; j < MAZE_SIZE; j++) {
             maze[i][j] = '#';
         }
     }
 
-    // Lista para armazenar as cÃ©lulas candidatas para expandir
-    struct {
-        int x;
-        int y;
-    } cells[MAZE_SIZE * MAZE_SIZE / 2];
+    // Lista para armazenar as células candidatas para expandir
     int num_cells = 1;
     cells[0].x = 1;
     cells[0].y = 1;
 
-    // Marque a cÃ©lula inicial como parte do labirinto
+    // Marca a célula inicial como parte do labirinto
     maze[1][1] = ' ';
 
-    // Enquanto houverem cÃ©lulas candidatas para expandir
+    // Enquanto houverem células candidatas para expandir
     while (num_cells > 0) {
-        // Escolha uma cÃ©lula aleatÃ³ria da lista
-        int index = rand() % num_cells;
-        int x = cells[index].x;
-        int y = cells[index].y;
+        // Escolhe uma célula aleatória da lista
+        long index = rand() % num_cells;
+        long x = cells[index].x;
+        long y = cells[index].y;
 
-        // Verifique as cÃ©lulas vizinhas
+        // Verifica as células vizinhas
         int dx[] = {-2, 2, 0, 0};
         int dy[] = {0, 0, -2, 2};
         int neighbors[4];
         int num_neighbors = 0;
 
-        // Encontre as cÃ©lulas vizinhas nÃ£o marcadas
+        // Encontra as células vizinhas não marcadas
         for (int i = 0; i < 4; i++) {
-            int nx = x + dx[i];
-            int ny = y + dy[i];
+            long nx = x + dx[i];
+            long ny = y + dy[i];
             if (nx > 0 && nx < MAZE_SIZE && ny > 0 && ny < MAZE_SIZE && maze[nx][ny] == '#') {
                 neighbors[num_neighbors++] = i;
             }
         }
 
-        // Se houver cÃ©lulas vizinhas nÃ£o marcadas
+        // Se houver células vizinhas não marcadas
         if (num_neighbors > 0) {
-            // Escolha uma cÃ©lula vizinha aleatÃ³ria
+            // Escolhe uma outra célula vizinha aleatória
             int direction = neighbors[rand() % num_neighbors];
-            int nx = x + dx[direction];
-            int ny = y + dy[direction];
+            long nx = x + dx[direction];
+            long ny = y + dy[direction];
 
-            // Marque a cÃ©lula como parte do labirinto
+            // Marca a célula como parte do labirinto
             maze[nx][ny] = ' ';
-            // Abra a parede entre a cÃ©lula atual e a cÃ©lula escolhida
+            // Abre a parede entre a célula atual e a célula escolhida
             maze[x + dx[direction] / 2][y + dy[direction] / 2] = ' ';
 
-            // Adicione a cÃ©lula escolhida Ã  lista de cÃ©lulas candidatas
+            // Adiciona a célula escolhida à lista de células candidatas
             cells[num_cells].x = nx;
             cells[num_cells].y = ny;
             num_cells++;
         } else {
-            // Se nÃ£o houver cÃ©lulas vizinhas nÃ£o marcadas, remova a cÃ©lula atual da lista
+            // Se não houver células vizinhas não marcadas, remove a célula atual da lista
             cells[index] = cells[num_cells - 1];
             num_cells--;
         }
     }
 
-    int ta_dentu = 0;
-    int ta_fora = 0;
-    for(int i=0; i<MAZE_SIZE; i++){
-        if(ta_dentu == 0 && maze[0][i] == ' '){
-            ta_dentu = 1;
-            maze[0][i] = 'E';
-        }
-        if(!ta_dentu)
-            maze[0][i] = '#';
+    // Define o ponto de partida e o ponto de chegada
+    maze[0][0] = 'E';
+    maze[0][MAZE_SIZE - 1] = 'S';
 
-        maze[i][0] = '#';
-
-        maze[i][MAZE_SIZE-1] = '#';
-
-        if(ta_fora)
-            maze[MAZE_SIZE-1][i] = '#';
-        if(ta_fora == 0 && maze[MAZE_SIZE-1][i] == ' '){
-            ta_fora = 1;
-            maze[MAZE_SIZE-1][i] = 'S';
+    //Cria contornos entre a entrada e a saída.
+    long i;
+    //#pragma omp parallel for private(i)
+    for(i=0; i<MAZE_SIZE; i++){
+        if(maze[0][i] == 'E'){
+            maze[0][i+1] = ' ';
+            maze[1][i] = ' ';
         }
 
+        maze[MAZE_SIZE-1][i] = '#';
+
+        if(maze[i][MAZE_SIZE-1] == 'S'){
+            maze[i][MAZE_SIZE-2] = ' ';
+            maze[i+1][MAZE_SIZE-2] = ' ';
+        }else{
+            maze[i][MAZE_SIZE-1] = '#';
+        }
     }
-
-    // Defina o ponto de partida e o ponto de chegada
-    //maze[0][0] = 'E';
-    //maze[0][1] = ' ';
-    //maze[MAZE_SIZE - 1][MAZE_SIZE - 1] = 'S';
-
 
 }
 
-// Funï¿½ï¿½o para imprimir o labirinto
+// Função para imprimir o labirinto
 void print_maze() {
-    for (int i = 0; i < MAZE_SIZE; i++) {
-        for (int j = 0; j < MAZE_SIZE; j++) {
+    for (long i = 0; i < MAZE_SIZE; i++) {
+        for (long j = 0; j < MAZE_SIZE; j++) {
             printf("%c ", maze[i][j]);
         }
         printf("\n");
     }
 }
 
-typedef struct {
-    int x;
-    int y;
-} Point;
-
-int eh_valido(int x, int y) {
+//Função para validar as coordenadas do labirinto
+int eh_valido(long x, long y) {
     return (x >= 0 && x < MAZE_SIZE) && (y >= 0 && y < MAZE_SIZE);
 }
 
-int busca_em_profundidade(int startX, int startY) {
+//Função de Busca em Pronfundidade de maneira iterativa
+int busca_em_profundidade(long startX, long startY) {
+    // Pilha para armazenar os pontos a serem explorados
     Point *stack;
     stack = (Point*) malloc((sizeof(Point)*(MAZE_SIZE*MAZE_SIZE)));
-    // Pilha para armazenar os pontos a serem explorados
-    int top = 0;
+    long top = 0;
 
     stack[top].x = startX;
     stack[top].y = startY;
@@ -152,21 +158,22 @@ int busca_em_profundidade(int startX, int startY) {
         top--;
 
         if (maze[current.y][current.x] == 'S') {
-            return 1; // Encontrou a saÃ­da
+            return 1; // Encontrou a saída
         }
 
         maze[current.y][current.x] = '-'; // Marcar como visitado
 
-        // Vetores para representar as direÃ§Ãµes possÃ­veis (cima, direita, baixo, esquerda)
+        // Vetores para representar as direções possíveis (esquerda, baixo, direita, cima)
         int dx[] = {0, 1, 0, -1};
         int dy[] = {-1, 0, 1, 0};
 
+        //Percorre todas as direções possíveis
         //#pragma omp parallel for
         for (int i = 0; i < 4; i++) {
-            int newX = current.x + dx[i];
-            int newY = current.y + dy[i];
+            long newX = current.x + dx[i];
+            long newY = current.y + dy[i];
 
-            // Verifica se as novas coordenadas estÃ£o dentro dos limites do labirinto e se Ã© um caminho vÃ¡lido
+            // Verifica se as novas coordenadas estão dentro dos limites do labirinto e se é um caminho vazio ou a saída
             if (eh_valido(newX, newY) && (maze[newY][newX] == ' ' || maze[newY][newX] == 'S')) {
                 top++;
                 stack[top].x = newX;
@@ -175,21 +182,20 @@ int busca_em_profundidade(int startX, int startY) {
         }
     }
 
-    return 0; // Caminho nÃ£o encontrado
+    return 0; // Caminho não encontrado
 }
 
 int main() {
     srand(time(NULL));
 
-    //omp_set_num_threads(2); // Define o nÃºmero de Threads
+    //omp_set_num_threads(2); // Define o número de Threads
 
-    // Crie o labirinto e inicialize a matriz de caminho
+    double timei = omp_get_wtime();
+
     create_maze();
 
     //printf("Labirinto Criado!\n");
     //print_maze();
-
-    double timei = omp_get_wtime();
 
     int resp = busca_em_profundidade(0, 0);
 
@@ -197,7 +203,7 @@ int main() {
     printf("Time: %lf\n", timef-timei);
 
     //printf("\nCAMINHO FEITO PELO LABIRINTO: \n");
-    print_maze();
+    //print_maze();
 
     if(resp)
         printf("Caminho encontrado! =)\n");
@@ -208,4 +214,3 @@ int main() {
 
     return 0;
 }
-
