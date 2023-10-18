@@ -3,7 +3,7 @@
 #include <time.h>
 #include <omp.h>
 
-#define MAZE_SIZE 15000
+#define MAZE_SIZE 20000
 
 char** maze;
 
@@ -50,7 +50,7 @@ void liberar_memoria() {
 void create_maze() {
     inicializa_maze();
 
-    #pragma omp parallel for collapse(2)
+    //#pragma omp parallel for collapse(2)
     for (long long i = 0; i < MAZE_SIZE; i++) {
         for (long long j = 0; j < MAZE_SIZE; j++) {
             maze[i][j] = '#';
@@ -119,7 +119,7 @@ void create_maze() {
     maze[0][MAZE_SIZE - 1] = 'S';
 
     // Cria contornos entre a entrada e a saída.
-    #pragma omp parallel for simd
+    //#pragma omp parallel for simd
     for (long long i = 0; i < MAZE_SIZE; i++) {
         maze[i][MAZE_SIZE - 1] = '#';
         maze[MAZE_SIZE - 1][i] = '#';
@@ -150,53 +150,50 @@ int eh_valido(long long x, long long y) {
 }
 
 int busca_em_profundidade(long long startX, long long startY) {
-    // Pilha para armazenar os pontos a serem explorados
-    Point *stack;
-    stack = (Point*) malloc((sizeof(Point)*(MAZE_SIZE*MAZE_SIZE)));
-    long top = 0;
-
-    stack[top].x = startX;
-    stack[top].y = startY;
-
     int found = 0; // Variável para indicar se o caminho foi encontrado
 
-    while (top >= 0 && !found) {
-        Point current = stack[top];
-        top--;
+    // Vetores para representar as direções possíveis (esquerda, baixo, direita, cima)
+    int dx[] = {0, 1, 0, -1};
+    int dy[] = {-1, 0, 1, 0};
 
-        if (maze[current.y][current.x] == 'S') {
-            found = 1; // Encontrou a saída
-        }
+    // Pragma OpenMP para paralelizar o loop externo
+    //#pragma omp parallel for
+    for (long long i = 0; i < MAZE_SIZE; i++) {
+        // Loop interno para percorrer as colunas da matriz 'maze'
+        for (long long j = 0; j < MAZE_SIZE; j++) {
+            if (maze[i][j] == 'S') {
+                // Se encontrou a saída, atualiza a variável 'found'
+                found = 1;
+            }
 
-        maze[current.y][current.x] = '-'; // Marcar como visitado
+            // Se a célula atual for vazia ou a saída, marca como visitada
+            if (maze[i][j] == ' ' || maze[i][j] == 'S') {
+                // Pragma OpenMP para paralelizar o loop interno
+                // #pragma omp parallel for simd
+                for (int k = 0; k < 4; k++) {
+                    // Calcula as novas coordenadas
+                    long newX = j + dx[k];
+                    long newY = i + dy[k];
 
-        // Vetores para representar as direções possíveis (esquerda, baixo, direita, cima)
-        int dx[] = {0, 1, 0, -1};
-        int dy[] = {-1, 0, 1, 0};
-
-        for (int i = 0; i < 4; i++) {
-            if (found) continue; // Se o caminho foi encontrado, saia do loop
-
-            long newX = current.x + dx[i];
-            long newY = current.y + dy[i];
-
-            // Verifica se as novas coordenadas estão dentro dos limites do labirinto e se é um caminho vazio ou a saída
-            if (eh_valido(newX, newY) && (maze[newY][newX] == ' ' || maze[newY][newX] == 'S')) {
-                top++;
-                stack[top].x = newX;
-                stack[top].y = newY;
+                    // Verifica se as novas coordenadas estão dentro dos limites do labirinto
+                    if (eh_valido(newX, newY) && maze[newY][newX] == ' ') {
+                        // Marca como visitada
+                        // Pragma OpenMP para garantir a exclusão mútua ao acessar a matriz 'maze'
+                        // #pragma omp critical
+                        maze[newY][newX] = '-';
+                    }
+                }
             }
         }
     }
 
-    free(stack);
     return found; // Retorna 1 se o caminho foi encontrado, 0 caso contrário
 }
 
 int main() {
     srand(time(NULL));
 
-    omp_set_num_threads(8); // Define o n�mero de Threads
+    //omp_set_num_threads(8); // Define o n�mero de Threads
 
     double timei = omp_get_wtime();
     create_maze();
